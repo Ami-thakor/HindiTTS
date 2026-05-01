@@ -247,6 +247,7 @@ class ChatterboxTTS:
         exaggeration=0.5,
         cfg_weight=0.5,
         temperature=0.8,
+        language_id="en",
     ):
         """
         Generate speech from text using the language-agnostic model.
@@ -278,7 +279,8 @@ class ChatterboxTTS:
 
         # Norm and tokenize text
         text = punc_norm(text)
-        text_tokens = self.tokenizer.text_to_tokens(text, language_id="en").to(self.device)
+        lang = (language_id or "en").lower() if language_id else None
+        text_tokens = self.tokenizer.text_to_tokens(text, language_id=lang).to(self.device)
         text_tokens = torch.cat([text_tokens, text_tokens], dim=0)  # Need two seqs for CFG
 
         sot = self.t3.hp.start_text_token

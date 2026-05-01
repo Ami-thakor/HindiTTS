@@ -12,6 +12,8 @@ DEFAULT_CONFIG = {
     "text": 'नमस्ते, आप कैसे हैं? आज मौसम बहुत सुहावना है।',
 }
 
+FIXED_LANGUAGE_ID = 'hi'
+
 EXAMPLES = [
         ['नमस्ते, आप कैसे हैं? आज मौसम बहुत सुहावना है।', 'https://storage.googleapis.com/chatterbox-demo-samples/mtl_prompts/hi_f1.flac', 0.5, 0.8, 0, 0.5],
         ['भारत अपनी विविधता, संस्कृति और स्वादिष्ट खाने के लिए प्रसिद्ध है।', 'https://storage.googleapis.com/chatterbox-demo-samples/mtl_prompts/hi_f1.flac', 0.5, 0.8, 0, 0.5],
@@ -60,16 +62,17 @@ def generate_tts_audio(
     current_model.to(device)
     if seed_num_input != 0:
         set_seed(int(seed_num_input), device)
-    print(f"Generating on {device} for text: '{text_input[:50]}...'")
     chosen_prompt = audio_prompt_path_input or default_audio_for_ui()
+    lang = FIXED_LANGUAGE_ID
+    print(f"Generating on {device} (lang={lang}) for text: '{text_input[:50]}...'")
     generate_kwargs = {
         "exaggeration": exaggeration_input,
         "temperature": temperature_input,
         "cfg_weight": cfgw_input,
+        "language_id": lang,
     }
     if chosen_prompt:
         generate_kwargs["audio_prompt_path"] = chosen_prompt
-        print(f"Using audio prompt: {chosen_prompt}")
     wav = current_model.generate(text_input[:300], **generate_kwargs)
     return (current_model.sr, wav.squeeze(0).cpu().numpy())
 
@@ -109,7 +112,7 @@ with gr.Blocks() as demo:
 
     gr.Examples(
         examples=EXAMPLES,
-        inputs=[text, ref_wav, exaggeration, temp, seed_num, cfg_weight],
+        inputs=inputs,
         label="Examples",
     )
 
