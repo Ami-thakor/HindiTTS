@@ -20,6 +20,7 @@ from .models.t3.modules.cond_enc import T3Cond
 
 REPO_ID = "ResembleAI/Chatterbox-Multilingual-hi"
 BASE_REPO_ID = "ResembleAI/chatterbox"
+S3GEN_FILENAME = "s3gen_v3.pt"
 T3_FILENAME = "t3_hi.safetensors"
 TOKENIZER_FILENAME = "grapheme_mtl_merged_expanded_v1.json"
 T3_TEXT_VOCAB_SIZE = 2454
@@ -145,9 +146,10 @@ class ChatterboxTTS:
 
 
     @classmethod
-    def from_local(cls, ckpt_dir, device, t3_filename: str = None) -> 'ChatterboxTTS':
+    def from_local(cls, ckpt_dir, device, t3_filename: str = None, s3gen_filename: str = None) -> 'ChatterboxTTS':
         ckpt_dir = Path(ckpt_dir)
         t3_filename = t3_filename or T3_FILENAME
+        s3gen_filename = s3gen_filename or S3GEN_FILENAME
 
         ve = VoiceEncoder()
         ve.load_state_dict(
@@ -166,7 +168,8 @@ class ChatterboxTTS:
 
         s3gen = S3Gen()
         s3gen.load_state_dict(
-            torch.load(ckpt_dir / "s3gen.pt", weights_only=True, map_location="cpu")
+            torch.load(ckpt_dir / s3gen_filename, weights_only=True, map_location="cpu"),
+            strict=False,
         )
         s3gen.to(device).eval()
 
@@ -183,13 +186,13 @@ class ChatterboxTTS:
     @classmethod
     def from_pretrained(cls, device: torch.device) -> 'ChatterboxTTS':
         token = os.getenv("HF_TOKEN")
-        base_files = ["ve.pt", "s3gen.pt", TOKENIZER_FILENAME, "conds.pt"]
+        base_files = ["ve.pt", TOKENIZER_FILENAME, "conds.pt"]
         base_dir = Path(
             snapshot_download(
                 repo_id=BASE_REPO_ID,
                 repo_type="model",
                 revision="main",
-                allow_patterns=base_files + [T3_FILENAME] if REPO_ID == BASE_REPO_ID else base_files,
+                allow_patterns=base_files + [T3_FILENAME, S3GEN_FILENAME] if REPO_ID == BASE_REPO_ID else base_files,
                 token=token,
             )
         )
@@ -197,21 +200,22 @@ class ChatterboxTTS:
         if REPO_ID == BASE_REPO_ID:
             ckpt_dir = base_dir
         else:
-            t3_path = Path(hf_hub_download(
-                repo_id=REPO_ID,
-                filename=T3_FILENAME,
-                repo_type="model",
-                token=token,
-            ))
-            link = base_dir / T3_FILENAME
-            if not link.exists():
-                try:
-                    os.symlink(t3_path, link)
-                except OSError:
-                    import shutil as _sh
-                    _sh.copy(t3_path, link)
+            for filename in (T3_FILENAME, S3GEN_FILENAME):
+                src_path = Path(hf_hub_download(
+                    repo_id=REPO_ID,
+                    filename=filename,
+                    repo_type="model",
+                    token=token,
+                ))
+                link = base_dir / filename
+                if not link.exists():
+                    try:
+                        os.symlink(src_path, link)
+                    except OSError:
+                        import shutil as _sh
+                        _sh.copy(src_path, link)
             ckpt_dir = base_dir
-        return cls.from_local(ckpt_dir, device, t3_filename=T3_FILENAME)
+        return cls.from_local(ckpt_dir, device, t3_filename=T3_FILENAME, s3gen_filename=S3GEN_FILENAME)
     
     def prepare_conditionals(self, wav_fpath, exaggeration=0.5):
         ## Load reference wav
