@@ -133,6 +133,15 @@ class ChatterboxTTS:
         self.conds = conds
         self.watermarker = perth.PerthImplicitWatermarker()
 
+    def to(self, device):
+        self.t3.to(device).eval()
+        self.s3gen.to(device).eval()
+        self.ve.to(device).eval()
+        if self.conds is not None:
+            self.conds = self.conds.to(device)
+        self.device = str(device)
+        return self
+
 
 
     @classmethod
@@ -142,7 +151,7 @@ class ChatterboxTTS:
 
         ve = VoiceEncoder()
         ve.load_state_dict(
-            torch.load(ckpt_dir / "ve.pt", weights_only=True)
+            torch.load(ckpt_dir / "ve.pt", weights_only=True, map_location="cpu")
         )
         ve.to(device).eval()
 
@@ -157,7 +166,7 @@ class ChatterboxTTS:
 
         s3gen = S3Gen()
         s3gen.load_state_dict(
-            torch.load(ckpt_dir / "s3gen.pt", weights_only=True)
+            torch.load(ckpt_dir / "s3gen.pt", weights_only=True, map_location="cpu")
         )
         s3gen.to(device).eval()
 

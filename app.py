@@ -5,9 +5,6 @@ from chatterbox.src.chatterbox.tts import ChatterboxTTS
 import gradio as gr
 import spaces
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"🚀 Running on device: {DEVICE}")
-
 MODEL = None
 
 DEFAULT_CONFIG = {
@@ -33,23 +30,15 @@ def default_text_for_ui():
 def get_or_load_model():
     global MODEL
     if MODEL is None:
-        print("Model not loaded, initializing...")
-        MODEL = ChatterboxTTS.from_pretrained(DEVICE)
-        if hasattr(MODEL, "to") and str(MODEL.device) != DEVICE:
-            MODEL.to(DEVICE)
-        print(f"Model loaded successfully. Internal device: {getattr(MODEL, 'device', 'N/A')}")
+        print("Model not loaded, initializing on CPU...")
+        MODEL = ChatterboxTTS.from_pretrained("cpu")
+        print("Model loaded.")
     return MODEL
 
 
-try:
-    get_or_load_model()
-except Exception as e:
-    print(f"CRITICAL: Failed to load model on startup. Application may not function. Error: {e}")
-
-
-def set_seed(seed: int):
+def set_seed(seed: int, device: str):
     torch.manual_seed(seed)
-    if DEVICE == "cuda":
+    if device == "cuda" and torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
     random.seed(seed)
@@ -66,12 +55,12 @@ def generate_tts_audio(
     cfgw_input: float = 0.5,
 ):
     """Generate speech from text with optional reference audio styling."""
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     current_model = get_or_load_model()
-    if current_model is None:
-        raise RuntimeError("TTS model is not loaded.")
+    current_model.to(device)
     if seed_num_input != 0:
-        set_seed(int(seed_num_input))
-    print(f"Generating audio for text: '{text_input[:50]}...'")
+        set_seed(int(seed_num_input), device)
+    print(f"Generating on {device} for text: '{text_input[:50]}...'")
     chosen_prompt = audio_prompt_path_input or default_audio_for_ui()
     generate_kwargs = {
         "exaggeration": exaggeration_input,
@@ -82,7 +71,7 @@ def generate_tts_audio(
         generate_kwargs["audio_prompt_path"] = chosen_prompt
         print(f"Using audio prompt: {chosen_prompt}")
     wav = current_model.generate(text_input[:300], **generate_kwargs)
-    return (current_model.sr, wav.squeeze(0).numpy())
+    return (current_model.sr, wav.squeeze(0).cpu().numpy())
 
 
 with gr.Blocks() as demo:
