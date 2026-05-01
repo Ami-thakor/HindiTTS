@@ -19,8 +19,10 @@ from .models.t3.modules.cond_enc import T3Cond
 
 
 REPO_ID = "ResembleAI/Chatterbox-Multilingual-hi"
-BASE_REPO_ID = "ResembleAI/Chatterbox-Multilingual-AllLang"
+BASE_REPO_ID = "ResembleAI/chatterbox"
 T3_FILENAME = "t3_hi.safetensors"
+TOKENIZER_FILENAME = "grapheme_mtl_merged_expanded_v1.json"
+T3_TEXT_VOCAB_SIZE = 2454
 
 
 def punc_norm(text: str) -> str:
@@ -144,7 +146,9 @@ class ChatterboxTTS:
         )
         ve.to(device).eval()
 
-        t3 = T3(T3ConfigMultilingual())
+        t3_cfg = T3ConfigMultilingual()
+        t3_cfg.text_tokens_dict_size = T3_TEXT_VOCAB_SIZE
+        t3 = T3(t3_cfg)
         t3_state = load_safetensors(ckpt_dir / t3_filename)
         if "model" in t3_state.keys():
             t3_state = t3_state["model"][0]
@@ -158,7 +162,7 @@ class ChatterboxTTS:
         s3gen.to(device).eval()
 
         tokenizer = MTLTokenizer(
-            str(ckpt_dir / "mtl_tokenizer.json")
+            str(ckpt_dir / TOKENIZER_FILENAME)
         )
 
         conds = None
@@ -170,7 +174,7 @@ class ChatterboxTTS:
     @classmethod
     def from_pretrained(cls, device: torch.device) -> 'ChatterboxTTS':
         token = os.getenv("HF_TOKEN")
-        base_files = ["ve.pt", "s3gen.pt", "mtl_tokenizer.json", "conds.pt"]
+        base_files = ["ve.pt", "s3gen.pt", TOKENIZER_FILENAME, "conds.pt"]
         base_dir = Path(
             snapshot_download(
                 repo_id=BASE_REPO_ID,
