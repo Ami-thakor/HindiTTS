@@ -5,6 +5,7 @@ colorFrom: indigo
 colorTo: blue
 sdk: gradio
 sdk_version: 5.29.0
+python_version: "3.10"
 app_file: app.py
 pinned: false
 short_description: "Chatterbox TTS fine-tuned for Hindi (hi)."
