@@ -7,7 +7,7 @@ sdk: gradio
 sdk_version: 5.29.0
 app_file: app.py
 pinned: false
-short_description: Chatterbox TTS fine-tuned for Hindi (hi).
+short_description: "Chatterbox TTS fine-tuned for Hindi (hi)."
 models:
   - ResembleAI/Chatterbox-Multilingual-hi
   - ResembleAI/Chatterbox-Multilingual-AllLang
