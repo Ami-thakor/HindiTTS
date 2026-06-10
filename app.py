@@ -6,6 +6,8 @@ import gradio as gr
 import spaces
 
 MODEL = None
+# ZeroGPU supports CUDA placement at module load time via CUDA emulation.
+TARGET_DEVICE = "cuda"
 
 DEFAULT_CONFIG = {
     "audio": 'https://storage.googleapis.com/chatterbox-demo-samples/mtl_prompts/hi_f1.flac',
@@ -32,9 +34,15 @@ def default_text_for_ui():
 def get_or_load_model():
     global MODEL
     if MODEL is None:
-        print("Model not loaded, initializing on CPU...")
-        MODEL = ChatterboxTTS.from_pretrained("cpu")
-        print("Model loaded.")
+        print(f"Model not loaded, initializing on {TARGET_DEVICE}...")
+        try:
+            MODEL = ChatterboxTTS.from_pretrained(TARGET_DEVICE)
+        except Exception as exc:
+            if TARGET_DEVICE != "cuda":
+                raise
+            print(f"CUDA model initialization failed, falling back to CPU: {exc}")
+            MODEL = ChatterboxTTS.from_pretrained("cpu")
+        print(f"Model loaded on {MODEL.device}.")
     return MODEL
 
 
@@ -57,9 +65,8 @@ def generate_tts_audio(
     cfgw_input: float = 0.5,
 ):
     """Generate speech from text with optional reference audio styling."""
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     current_model = get_or_load_model()
-    current_model.to(device)
+    device = current_model.device
     if seed_num_input != 0:
         set_seed(int(seed_num_input), device)
     chosen_prompt = audio_prompt_path_input or default_audio_for_ui()
@@ -75,6 +82,9 @@ def generate_tts_audio(
         generate_kwargs["audio_prompt_path"] = chosen_prompt
     wav = current_model.generate(text_input[:300], **generate_kwargs)
     return (current_model.sr, wav.squeeze(0).cpu().numpy())
+
+
+get_or_load_model()
 
 
 with gr.Blocks() as demo:

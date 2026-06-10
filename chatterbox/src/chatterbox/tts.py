@@ -11,7 +11,7 @@ from huggingface_hub import snapshot_download, hf_hub_download
 
 from .models.t3 import T3
 from .models.t3.modules.t3_config import T3ConfigMultilingual
-from .models.s3tokenizer import S3_SR, drop_invalid_tokens
+from .models.s3tokenizer import S3_SR, S3_TOKEN_RATE, drop_invalid_tokens
 from .models.s3gen import S3GEN_SR, S3Gen
 from .models.tokenizers import MTLTokenizer
 from .models.voice_encoder import VoiceEncoder
@@ -312,5 +312,12 @@ class ChatterboxTTS:
                 ref_dict=self.conds.gen,
             )
             wav = wav.squeeze(0).detach().cpu().numpy()
+
+            # Drop the final speech token's audio: it is emitted just before
+            # EOS with degraded attention and decodes to ~40 ms of noise.
+            n_tokens = int(speech_tokens.shape[-1])
+            st_len = max(1, n_tokens - 1)
+            wav = wav[: st_len * (S3GEN_SR // S3_TOKEN_RATE)]
+
             watermarked_wav = self.watermarker.apply_watermark(wav, sample_rate=self.sr)
         return torch.from_numpy(watermarked_wav).unsqueeze(0)
