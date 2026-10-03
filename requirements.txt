@@ -1,5 +1,9 @@
 --extra-index-url https://download.pytorch.org/whl/cu128
+numpy==1.26.0
+torch==2.8.0
 torchaudio==2.8.0
+torchvision==0.23.0
+Pillow==10.4.0
 gradio
 resampy==0.4.3
 librosa==0.10.0
